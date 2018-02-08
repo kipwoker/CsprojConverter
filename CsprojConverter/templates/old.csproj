@@ -37,8 +37,8 @@
     <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <ItemGroup>
-    <EmbeddedResource Include="1" />
-    <EmbeddedResource Include="2" />
+    <EmbeddedResource Include="somePath1" />
+    <EmbeddedResource Include="somePath2" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="value1">
