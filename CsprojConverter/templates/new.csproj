@@ -83,14 +83,10 @@
   </ItemGroup>
   <Import Sdk="Microsoft.NET.Sdk" Project="Sdk.props" />
   <Import Sdk="Microsoft.NET.Sdk" Project="Sdk.targets" />
-  <PropertyGroup>
-    <PostBuildEvent>copy "$(TargetDir)$(TargetName)".* "$(ProjectDir)\..\..\..\Assemblies\Billy\Partners"</PostBuildEvent>
-  </PropertyGroup>
-  <!-- To modify your build process, add your task inside one of the targets below and uncomment it.
-       Other similar extension points exist, see Microsoft.Common.targets.
-  <Target Name="BeforeBuild">
+  <Target Name="PreBuild" AfterTargets="PreBuildEvent">
+    <Exec Command="copy &quot;$(TargetDir)$(TargetName)&quot;.* &quot;$(ProjectDir)\..\..\..\output&quot;" />
   </Target>
-  <Target Name="AfterBuild">
+  <Target Name="PostBuild" AfterTargets="PostBuildEvent">
+    <Exec Command="copy &quot;$(TargetDir)$(TargetName)&quot;.* &quot;$(ProjectDir)\..\..\..\output&quot;" />
   </Target>
-  -->
 </Project>

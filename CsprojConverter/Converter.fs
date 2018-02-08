@@ -48,8 +48,7 @@ let convertPropertyGroup (source : OldCsProj.PropertyGroup) (useVsHostingProcces
         source.ErrorReport,
         source.WarningLevel,
         source.Prefer32Bit,
-        useVsHostingProccess,
-        source.PostBuildEvent)
+        useVsHostingProccess)
 
 let getPropertyGroups (oldProject : OldCsProj.Project) =
     let propertyGroupsList = oldProject.PropertyGroups |> Array.toList
@@ -124,11 +123,27 @@ let getItemGroups (oldProject : OldCsProj.Project) (oldConfig : OldPackageConfig
                         )
                         |> not
                     )
+                    
+let private convertBuildEvent (target : string) (command : string) =
+    let exec = NewCsProj.Exec(command)
+    NewCsProj.Target(target, target + "Event", exec)
+    
+                    
+let private getTargets (oldProject : OldCsProj.Project) =
+    let convertEvents (chooseEvent : (OldCsProj.PropertyGroup -> string option)) (target : string) =
+        oldProject.PropertyGroups 
+            |> Array.filter (fun p -> (chooseEvent p).IsSome)
+            |> Array.map (fun p -> convertBuildEvent target (chooseEvent p).Value)
 
+    let postBuildEvents = convertEvents (fun p -> p.PostBuildEvent) "PostBuild"
+    let preBuildEvents = convertEvents (fun p -> p.PreBuildEvent) "PreBuild"
+    
+    [preBuildEvents; postBuildEvents] |> Array.concat  
 
 let buildNewCsProj (oldProject : OldCsProj.Project) (oldConfig : OldPackageConfig.Packages) (packagesFolder : string) = 
     NewCsProj
         .Project(
             getPropertyGroups oldProject, 
             getItemGroups oldProject oldConfig packagesFolder,
-            [| NewCsProj.Import("Microsoft.NET.Sdk", "Sdk.props"); NewCsProj.Import("Microsoft.NET.Sdk", "Sdk.targets") |])
+            [| NewCsProj.Import("Microsoft.NET.Sdk", "Sdk.props"); NewCsProj.Import("Microsoft.NET.Sdk", "Sdk.targets") |],
+            getTargets oldProject)
