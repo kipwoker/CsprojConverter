@@ -45,8 +45,8 @@
       <HintPath>value1</HintPath>
       <Private>True</Private>
     </Reference>
-    <PackageReference Include="package1" Version="1.0.0" />
-    <PackageReference Include="package2" Version="1.1.0" />
+    <PackageReference Include="package1" Version="someVersion1" />
+    <PackageReference Include="package2" Version="someVersion2" />
     <Reference Include="value2">
       <SpecificVersion>False</SpecificVersion>
       <HintPath>value2</HintPath>

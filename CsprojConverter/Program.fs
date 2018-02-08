@@ -9,6 +9,7 @@ open System.Text
 
 type OldCsProj = XmlProvider<"templates\\old.csproj">
 type NewCsProj = XmlProvider<"templates\\new.csproj">
+type OldPackageConfig = XmlProvider<"templates\\oldPackage.config">
 
 let convert<'TIn, 'TOut> (source : Option<'TIn>) (converter : ('TIn -> 'TOut)) =
     match source with
@@ -78,6 +79,9 @@ let convertNone (source : OldCsProj.None) : NewCsProj.None =
 let convertReference (source : OldCsProj.Reference) : NewCsProj.Reference =
     NewCsProj.Reference(source.Include, source.HintPath, source.Private, source.SpecificVersion)
 
+let convertPackageReference (source : OldPackageConfig.Package) : NewCsProj.PackageReference =
+    NewCsProj.PackageReference(source.Id, source.Version) 
+
 let convertContent (source : OldCsProj.Content) : NewCsProj.Content =
     NewCsProj.Content(source.Include, source.Link, source.CopyToOutputDirectory, source.SubType)
 
@@ -87,44 +91,62 @@ let convertProjectReference (source : OldCsProj.ProjectReference) : NewCsProj.Pr
 let convertAnalyzer (source : OldCsProj.Analyzer) : NewCsProj.Analyzer =
     NewCsProj.Analyzer(source.Include)
 
-let convertItemGroup (source : OldCsProj.ItemGroup) = 
+let convertItemGroup (source : OldCsProj.ItemGroup) (oldConfig : OldPackageConfig.Packages) = 
+    let references = source.References |> Array.filter (fun reference ->
+            not (oldConfig.Packages |> Array.exists (fun p -> p.Id = reference.Include)))
     NewCsProj.ItemGroup(
         source.EmbeddedResources |> Array.map (fun r -> r |> convertEmbeddedResource),
-        source.References |> Array.map (fun r -> r |> convertReference),
+        references |> Array.map (fun r -> r |> convertReference),
         [||], //PackageReference
         source.Nones |> Array.filter (fun r -> not (r.Include = "packages.config")) |> Array.map (fun r -> r |> convertNone),
         source.Contents |> Array.map (fun r -> r |> convertContent),
         source.ProjectReferences |> Array.map (fun r -> r |> convertProjectReference),
         source.Analyzers |> Array.map (fun r -> r |> convertAnalyzer))
 
-let getItemGroups (oldProject : OldCsProj.Project) =
-    oldProject.ItemGroups
-    |> Array.map (fun itemGroup -> itemGroup |> convertItemGroup)
-    |> Array.filter (fun itemGroup ->
-                        ( 
-                            itemGroup.Analyzers |> Array.isEmpty &&
-                            itemGroup.Contents |> Array.isEmpty &&
-                            itemGroup.References |> Array.isEmpty &&
-                            itemGroup.EmbeddedResources |> Array.isEmpty &&
-                            itemGroup.Nones |> Array.isEmpty &&
-                            itemGroup.PackageReferences |> Array.isEmpty &&
-                            itemGroup.ProjectReferences |> Array.isEmpty
-                        )
-                        |> not
-                    )
+let convertItemGroupWithReferences (oldConfig : OldPackageConfig.Packages) =
+    NewCsProj.ItemGroup(
+        [||],
+        [||],
+        oldConfig.Packages |> Array.map (fun r -> r |> convertPackageReference),
+        [||],
+        [||],
+        [||],
+        [||])
 
-let buildNewCsProj (oldProject : OldCsProj.Project) = 
+let getItemGroups (oldProject : OldCsProj.Project) (oldConfig : OldPackageConfig.Packages) =
+    let mainGroups = 
+        oldProject.ItemGroups
+        |> Array.map (fun itemGroup -> itemGroup |> convertItemGroup <| oldConfig)
+        |> Array.filter (fun itemGroup ->
+                            ( 
+                                itemGroup.Analyzers |> Array.isEmpty &&
+                                itemGroup.Contents |> Array.isEmpty &&
+                                itemGroup.References |> Array.isEmpty &&
+                                itemGroup.EmbeddedResources |> Array.isEmpty &&
+                                itemGroup.Nones |> Array.isEmpty &&
+                                itemGroup.PackageReferences |> Array.isEmpty &&
+                                itemGroup.ProjectReferences |> Array.isEmpty
+                            )
+                            |> not
+                        )
+        |> Array.toList
+
+    let referenceGroup = oldConfig |> convertItemGroupWithReferences
+    referenceGroup::mainGroups |> List.toArray
+
+let buildNewCsProj (oldProject : OldCsProj.Project) (oldConfig : OldPackageConfig.Packages)= 
     NewCsProj
         .Project(
             getPropertyGroups oldProject, 
-            getItemGroups oldProject,
+            getItemGroups oldProject oldConfig,
             [| NewCsProj.Import("Microsoft.NET.Sdk", "Sdk.props"); NewCsProj.Import("Microsoft.NET.Sdk", "Sdk.targets") |])
     
 
 [<EntryPoint>]
 let main _ = 
+    let packageConfig = OldPackageConfig.GetSample()
     let project = OldCsProj.GetSample()
-    let output = sprintf "%A" (project |> buildNewCsProj)
+    let output = sprintf "%A" (project |> buildNewCsProj <| packageConfig)
     //printfn "%s" output
     File.WriteAllText("output.csproj", output, Encoding.UTF8)
     0 // return an integer exit code
