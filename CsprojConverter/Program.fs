@@ -1,4 +1,5 @@
 ﻿open Converter
+open Cleaner
 open System.IO
 open System.Text    
 
@@ -24,5 +25,7 @@ let main args =
             
     let output = sprintf "%A" (buildNewCsProj project packageConfig packagesFolder)
     File.WriteAllText("output.csproj", output, Encoding.UTF8)
+    projectPath |> cleanup
+    
     printfn "%s" "done"
     0 // return an integer exit code
