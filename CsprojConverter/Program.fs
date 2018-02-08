@@ -92,47 +92,34 @@ let convertAnalyzer (source : OldCsProj.Analyzer) : NewCsProj.Analyzer =
     NewCsProj.Analyzer(source.Include)
 
 let convertItemGroup (source : OldCsProj.ItemGroup) (oldConfig : OldPackageConfig.Packages) = 
-    let references = source.References |> Array.filter (fun reference ->
-            not (oldConfig.Packages |> Array.exists (fun p -> p.Id = reference.Include)))
+    let references = source.References 
+                        |> Array.filter (fun reference ->
+                            not (oldConfig.Packages |> Array.exists (fun p -> p.Id = reference.Include)))
     NewCsProj.ItemGroup(
         source.EmbeddedResources |> Array.map (fun r -> r |> convertEmbeddedResource),
         references |> Array.map (fun r -> r |> convertReference),
-        [||], //PackageReference
+        oldConfig.Packages |> Array.map (fun r -> r |> convertPackageReference),
         source.Nones |> Array.filter (fun r -> not (r.Include = "packages.config")) |> Array.map (fun r -> r |> convertNone),
         source.Contents |> Array.map (fun r -> r |> convertContent),
         source.ProjectReferences |> Array.map (fun r -> r |> convertProjectReference),
         source.Analyzers |> Array.map (fun r -> r |> convertAnalyzer))
 
-let convertItemGroupWithReferences (oldConfig : OldPackageConfig.Packages) =
-    NewCsProj.ItemGroup(
-        [||],
-        [||],
-        oldConfig.Packages |> Array.map (fun r -> r |> convertPackageReference),
-        [||],
-        [||],
-        [||],
-        [||])
-
 let getItemGroups (oldProject : OldCsProj.Project) (oldConfig : OldPackageConfig.Packages) =
-    let mainGroups = 
-        oldProject.ItemGroups
-        |> Array.map (fun itemGroup -> itemGroup |> convertItemGroup <| oldConfig)
-        |> Array.filter (fun itemGroup ->
-                            ( 
-                                itemGroup.Analyzers |> Array.isEmpty &&
-                                itemGroup.Contents |> Array.isEmpty &&
-                                itemGroup.References |> Array.isEmpty &&
-                                itemGroup.EmbeddedResources |> Array.isEmpty &&
-                                itemGroup.Nones |> Array.isEmpty &&
-                                itemGroup.PackageReferences |> Array.isEmpty &&
-                                itemGroup.ProjectReferences |> Array.isEmpty
-                            )
-                            |> not
+    oldProject.ItemGroups
+    |> Array.map (fun itemGroup -> itemGroup |> convertItemGroup <| oldConfig)
+    |> Array.filter (fun itemGroup ->
+                        ( 
+                            itemGroup.Analyzers |> Array.isEmpty &&
+                            itemGroup.Contents |> Array.isEmpty &&
+                            itemGroup.References |> Array.isEmpty &&
+                            itemGroup.EmbeddedResources |> Array.isEmpty &&
+                            itemGroup.Nones |> Array.isEmpty &&
+                            itemGroup.PackageReferences |> Array.isEmpty &&
+                            itemGroup.ProjectReferences |> Array.isEmpty
                         )
-        |> Array.toList
+                        |> not
+                    )
 
-    let referenceGroup = oldConfig |> convertItemGroupWithReferences
-    referenceGroup::mainGroups |> List.toArray
 
 let buildNewCsProj (oldProject : OldCsProj.Project) (oldConfig : OldPackageConfig.Packages)= 
     NewCsProj
