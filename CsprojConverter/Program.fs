@@ -17,14 +17,16 @@ let main args =
         else 
             OldPackageConfig.GetSample()
     
+    let projectPath = args.[2]
+    
     let project = 
         if args.Length >= 3 then
-            OldCsProj.Load(args.[2])
+            OldCsProj.Load(projectPath)
         else 
             OldCsProj.GetSample()
             
     let output = sprintf "%A" (buildNewCsProj project packageConfig packagesFolder)
-    File.WriteAllText("output.csproj", output, Encoding.UTF8)
+    File.WriteAllText(projectPath, output, Encoding.UTF8)
     projectPath |> cleanup
     
     printfn "%s" "done"
