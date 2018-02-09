@@ -54,19 +54,19 @@ let getPropertyGroups (oldProject : OldCsProj.Project) =
     let propertyGroupsList = oldProject.PropertyGroups |> Array.toList
     match propertyGroupsList with
     | [] -> [||]
-    | headPropertyGroup::tailPropertyGroups -> 
+    | headPropertyGroup::tailPropertyGroups ->
         let newHeadPropertyGroup = convertPropertyGroup headPropertyGroup None ("OnOutputUpdated" |> Some)
         let newTailPropertyGroups = tailPropertyGroups
                                     |> List.map (
-                                        fun propertyGroup -> 
-                                            let useVsHostingProccess = 
-                                                if propertyGroup.Condition.IsSome && propertyGroup.Condition.Value.Contains("Debug") 
-                                                then (Some true) 
+                                        fun propertyGroup ->
+                                            let useVsHostingProccess =
+                                                if propertyGroup.Condition.IsSome && propertyGroup.Condition.Value.Contains("Debug")
+                                                then (Some true)
                                                 else None
                                             convertPropertyGroup propertyGroup useVsHostingProccess None
                                     )
         newHeadPropertyGroup::newTailPropertyGroups
-        |> List.filter (fun propertyGroup -> propertyGroup.XElement.HasElements) 
+        |> List.filter (fun propertyGroup -> propertyGroup.XElement.HasElements)
         |> List.toArray
 
 let convertEmbeddedResource (source : OldCsProj.EmbeddedResource) : NewCsProj.EmbeddedResource =
@@ -79,7 +79,7 @@ let convertReference (source : OldCsProj.Reference) : NewCsProj.Reference =
     NewCsProj.Reference(source.Include, source.HintPath, source.Private, source.SpecificVersion)
 
 let convertPackageReference (source : OldPackageConfig.Package) : NewCsProj.PackageReference =
-    NewCsProj.PackageReference(source.Id, source.Version) 
+    NewCsProj.PackageReference(source.Id, source.Version)
 
 let convertContent (source : OldCsProj.Content) : NewCsProj.Content =
     NewCsProj.Content(source.Include, source.Link, source.CopyToOutputDirectory, source.SubType)
@@ -90,15 +90,20 @@ let convertProjectReference (source : OldCsProj.ProjectReference) : NewCsProj.Pr
 let convertAnalyzer (source : OldCsProj.Analyzer) : NewCsProj.Analyzer =
     NewCsProj.Analyzer(source.Include)
 
-let convertItemGroup (source : OldCsProj.ItemGroup) (oldConfig : OldPackageConfig.Packages) (packagesFolder : string) = 
-    let references = source.References 
+let convertItemGroup (source : OldCsProj.ItemGroup) (oldConfig : Option<OldPackageConfig.Packages>) (packagesFolder : string) =
+    let oldConfigPackages =
+        if (oldConfig.IsSome) then
+            oldConfig.Value.Packages
+        else
+            [||]
+    let references = source.References
                         |> Array.filter (fun reference ->
-                            not (oldConfig.Packages |> Array.exists (fun p -> reference.Include.Contains(p.Id))) &&
+                            not (oldConfigPackages |> Array.exists (fun p -> reference.Include.Contains(p.Id))) &&
                             not (reference.HintPath.IsSome && reference.HintPath.Value.Contains(packagesFolder))
                             )
-    let packages = oldConfig.Packages 
-                    |> Array.filter (fun package -> source.References |> Array.exists (fun r -> r.Include.Contains(package.Id))) 
-    
+    let packages = oldConfigPackages
+                    |> Array.filter (fun package -> source.References |> Array.exists (fun r -> r.Include.Contains(package.Id)))
+
     NewCsProj.ItemGroup(
         source.EmbeddedResources |> Array.map (fun r -> r |> convertEmbeddedResource),
         references |> Array.map (fun r -> r |> convertReference),
@@ -108,11 +113,11 @@ let convertItemGroup (source : OldCsProj.ItemGroup) (oldConfig : OldPackageConfi
         source.ProjectReferences |> Array.map (fun r -> r |> convertProjectReference),
         source.Analyzers |> Array.map (fun r -> r |> convertAnalyzer))
 
-let getItemGroups (oldProject : OldCsProj.Project) (oldConfig : OldPackageConfig.Packages) (packagesFolder : string) =
+let getItemGroups (oldProject : OldCsProj.Project) (oldConfig : Option<OldPackageConfig.Packages>) (packagesFolder : string) =
     oldProject.ItemGroups
     |> Array.map (fun itemGroup -> convertItemGroup itemGroup oldConfig packagesFolder)
     |> Array.filter (fun itemGroup ->
-                        ( 
+                        (
                             itemGroup.Analyzers |> Array.isEmpty &&
                             itemGroup.Contents |> Array.isEmpty &&
                             itemGroup.References |> Array.isEmpty &&
@@ -123,27 +128,27 @@ let getItemGroups (oldProject : OldCsProj.Project) (oldConfig : OldPackageConfig
                         )
                         |> not
                     )
-                    
+
 let private convertBuildEvent (target : string) (command : string) =
     let exec = NewCsProj.Exec(command)
     NewCsProj.Target(target, target + "Event", exec)
-    
-                    
+
+
 let private getTargets (oldProject : OldCsProj.Project) =
     let convertEvents (chooseEvent : (OldCsProj.PropertyGroup -> string option)) (target : string) =
-        oldProject.PropertyGroups 
+        oldProject.PropertyGroups
             |> Array.filter (fun p -> (chooseEvent p).IsSome)
             |> Array.map (fun p -> convertBuildEvent target (chooseEvent p).Value)
 
     let postBuildEvents = convertEvents (fun p -> p.PostBuildEvent) "PostBuild"
     let preBuildEvents = convertEvents (fun p -> p.PreBuildEvent) "PreBuild"
-    
-    [preBuildEvents; postBuildEvents] |> Array.concat  
 
-let buildNewCsProj (oldProject : OldCsProj.Project) (oldConfig : OldPackageConfig.Packages) (packagesFolder : string) = 
+    [preBuildEvents; postBuildEvents] |> Array.concat
+
+let buildNewCsProj (oldProject : OldCsProj.Project) (oldConfig : Option<OldPackageConfig.Packages>) (packagesFolder : string) =
     NewCsProj
         .Project(
-            getPropertyGroups oldProject, 
+            getPropertyGroups oldProject,
             getItemGroups oldProject oldConfig packagesFolder,
             [| NewCsProj.Import("Microsoft.NET.Sdk", "Sdk.props"); NewCsProj.Import("Microsoft.NET.Sdk", "Sdk.targets") |],
             getTargets oldProject)
