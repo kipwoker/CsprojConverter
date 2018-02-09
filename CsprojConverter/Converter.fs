@@ -60,7 +60,7 @@ let getPropertyGroups (oldProject : OldCsProj.Project) =
                                     |> List.map (
                                         fun propertyGroup ->
                                             let useVsHostingProccess =
-                                                if propertyGroup.Condition.IsSome && propertyGroup.Condition.Value.Contains("Debug")
+                                                if propertyGroup.Condition.IsSome && propertyGroup.Condition.Value.ToLower().Contains("Debug".ToLower())
                                                 then (Some true)
                                                 else None
                                             convertPropertyGroup propertyGroup useVsHostingProccess None
@@ -98,11 +98,11 @@ let convertItemGroup (source : OldCsProj.ItemGroup) (oldConfig : Option<OldPacka
             [||]
     let references = source.References
                         |> Array.filter (fun reference ->
-                            not (oldConfigPackages |> Array.exists (fun p -> reference.Include.Contains(p.Id))) &&
-                            not (reference.HintPath.IsSome && reference.HintPath.Value.Contains(packagesFolder))
+                            not (oldConfigPackages |> Array.exists (fun p -> reference.Include.ToLower().Contains(p.Id.ToLower()))) &&
+                            not (reference.HintPath.IsSome && reference.HintPath.Value.ToLower().Contains(packagesFolder.ToLower()))
                             )
     let packages = oldConfigPackages
-                    |> Array.filter (fun package -> source.References |> Array.exists (fun r -> r.Include.Contains(package.Id)))
+                    |> Array.filter (fun package -> source.References |> Array.exists (fun r -> r.Include.ToLower().Contains(package.Id.ToLower())))
 
     NewCsProj.ItemGroup(
         source.EmbeddedResources |> Array.map (fun r -> r |> convertEmbeddedResource),
