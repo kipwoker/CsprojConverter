@@ -1,16 +1,14 @@
 ﻿open Converter
 open Cleaner
 open DirectoryParser
+open Logger
 open System
 open System.IO
 open System.Text
 
 let parseParameters (args : string[]) =
     match args |> Array.toList with
-    | repositoryFolder::packagesFolder::projectTypes::_ ->
-         let parsed = (Some repositoryFolder, Some packagesFolder, Some projectTypes)
-         printfn "Parsed %A" parsed
-         parsed
+    | repositoryFolder::packagesFolder::projectTypes::_ -> (Some repositoryFolder, Some packagesFolder, Some projectTypes) |> log "Parsed"
     | _ -> (None, None, None)
 
 let processProject (projectPath : string) (packagesFolder : string) =
@@ -37,7 +35,7 @@ let processRepository (repositoryFolder : string) (packagesFolder : string) (pro
                             |> Array.exists (fun projectType -> fileText.Contains(projectType))
                         existsIgnoredProjects |> not)
 
-    printfn "Will handle %d projects" projects.Length
+    projects.Length |> log "Projects for handle" |> ignore
     projects
     |> Array.iter (fun projectPath ->
         printf "Handle %s ..." projectPath
