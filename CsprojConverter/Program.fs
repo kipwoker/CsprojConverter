@@ -24,13 +24,13 @@ let processProject (projectPath : string) (packagesFolder : string) =
     File.WriteAllText(projectPath, output, Encoding.UTF8)
     projectPath |> cleanup
 
-let processRepository (repositoryFolder : string) (packagesFolder : string) (projectTypes : string[]) =
+let processRepository (repositoryFolder : string) (packagesFolder : string) (excludeProjectTypes : string[]) =
     let projects = repositoryFolder
                     |> getProjects
                     |> Array.filter (fun projectPath ->
                         let fileText = File.ReadAllText(projectPath).ToLower()
                         let existsIgnoredProjects =
-                            projectTypes
+                            excludeProjectTypes
                             |> Array.map (fun projectType -> projectType.ToLower())
                             |> Array.exists (fun projectType -> fileText.Contains(projectType))
                         existsIgnoredProjects |> not)
@@ -45,15 +45,15 @@ let processRepository (repositoryFolder : string) (packagesFolder : string) (pro
 
 [<EntryPoint>]
 let main args =
-    let (repositoryFolder, packagesFolder, projectTypesString) = parseParameters args
+    let (repositoryFolder, packagesFolder, excludeProjectTypesString) = parseParameters args
 
-    let projectTypes =
-        match projectTypesString with
+    let excludeProjectTypes =
+        match excludeProjectTypesString with
         | Some projectTypes -> projectTypes.Split( [| ' '; ';'; '.' |] )
         | None -> Array.empty
 
-    match (repositoryFolder, packagesFolder, projectTypes) with
-    | (Some repositoryFolder', Some packagesFolder', projectTypes') -> processRepository repositoryFolder' packagesFolder' projectTypes'
+    match (repositoryFolder, packagesFolder, excludeProjectTypes) with
+    | (Some repositoryFolder', Some packagesFolder', excludeProjectTypes') -> processRepository repositoryFolder' packagesFolder' excludeProjectTypes'
     | _ -> printfn "%s" "Wrong args"
 
     printfn "%s" "done"
