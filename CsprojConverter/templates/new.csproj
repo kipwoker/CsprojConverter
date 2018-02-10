@@ -85,7 +85,8 @@
   <Import Sdk="Microsoft.NET.Sdk" Project="Sdk.props" />
   <Import Sdk="Microsoft.NET.Sdk" Project="Sdk.targets" />
   <Target Name="PreBuild" AfterTargets="PreBuildEvent">
-    <Exec Command="copy &quot;$(TargetDir)$(TargetName)&quot;.* &quot;$(ProjectDir)\..\..\..\output&quot;" />
+    <Exec Command="copy &quot;$(TargetDir)$(TargetName)&quot;.* &quot;$(ProjectDir)\..\..\..\output&quot;" WorkingDirectory="" />
+	<Exec Command="copy &quot;$(TargetDir)$(TargetName)&quot;.* &quot;$(ProjectDir)\..\..\..\output&quot;" />
   </Target>
   <Target Name="PostBuild" AfterTargets="PostBuildEvent">
     <Exec Command="copy &quot;$(TargetDir)$(TargetName)&quot;.* &quot;$(ProjectDir)\..\..\..\output&quot;" />

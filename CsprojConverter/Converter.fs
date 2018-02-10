@@ -6,6 +6,7 @@ module Converter
 #endif
 
 open FSharp.Data
+open System
 
 type OldCsProj = XmlProvider<"templates\\old.csproj">
 type NewCsProj = XmlProvider<"templates\\new.csproj">
@@ -130,8 +131,13 @@ let getItemGroups (oldProject : OldCsProj.Project) (oldConfig : Option<OldPackag
                     )
 
 let private convertBuildEvent (target : string) (command : string) =
-    let exec = NewCsProj.Exec(command)
-    NewCsProj.Target(target, target + "Event", exec)
+    let commands = command.Split([| '\r'; '\n' |], StringSplitOptions.RemoveEmptyEntries)
+
+    let execs =
+        commands 
+        |> Array.map (fun c -> NewCsProj.Exec(c, "$(TargetDir)"))
+        
+    NewCsProj.Target(target, target + "Event", execs)
 
 
 let private getTargets (oldProject : OldCsProj.Project) =
